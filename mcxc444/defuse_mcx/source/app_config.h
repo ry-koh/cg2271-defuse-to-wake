@@ -139,6 +139,7 @@
 #define APP_US_US_PER_CM            58u     /* round-trip microseconds per centimetre */
 #define APP_US_MAX_CM               400u    /* HC-SR04 range */
 #define APP_US_INVALID_CM           999     /* DISTANCE value for timeout / out of range */
+#define APP_US_MEDIAN_N             3u      /* median window: one stray ping or lost echo must not break the tripwire hold */
 #define APP_US_USE_PIN_LEVEL        1       /* 1 = classify edges by ECHO pin level (UNVERIFIED on HW) */
 
 /* ---- TPM clocks: MCGIRCLK = 8 MHz LIRC (BOARD_BootClockRUN), SOPT2 TPMSRC = 3 ---- */
