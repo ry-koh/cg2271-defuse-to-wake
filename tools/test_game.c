@@ -440,20 +440,22 @@ static void test_tripwire_module(void)
     ev(GAME_EVT_ENC_PRESS, 0); /* wrong module */
     CHECK(view().strikes == 0);
 
-    ev(GAME_EVT_DISTANCE, 17); /* just below the band */
-    CHECK(view().module_value == 17);
-    ev(GAME_EVT_DISTANCE, 18); /* inclusive lower bound */
+    ev(GAME_EVT_DISTANCE, 14); /* just below the band */
+    CHECK(view().module_value == 14);
+    ev(GAME_EVT_DISTANCE, 15); /* inclusive lower bound */
     advance(1500);
     v = view();
-    CHECK(v.module_value == (18 | (50 << 8)));
-    ev(GAME_EVT_DISTANCE, 23); /* above the band: reset, no strike */
+    CHECK(v.module_value == (15 | (50 << 8)));
+    ev(GAME_EVT_DISTANCE, 26); /* above the band for the whole grace: reset, no strike */
+    advance(GAME_TRIP_GRACE_MS);
     v = view();
-    CHECK(v.module_value == (23 | (0 << 8)) && v.strikes == 0);
+    CHECK(v.module_value == (26 | (0 << 8)) && v.strikes == 0);
 
-    ev(GAME_EVT_DISTANCE, 22); /* inclusive upper bound */
+    ev(GAME_EVT_DISTANCE, 25); /* inclusive upper bound */
     advance(2950);
     CHECK(view().module_type == PROTO_MODULE_TRIPWIRE && view().state == PROTO_STATE_BOMB_ACTIVE);
-    ev(GAME_EVT_DISTANCE, 401); /* >400 is noise: resets the hold */
+    ev(GAME_EVT_DISTANCE, 401); /* >400 is noise: out of band, resets after the grace */
+    advance(GAME_TRIP_GRACE_MS);
     CHECK(view().module_value == 255);
     ev(GAME_EVT_DISTANCE, 300);
     CHECK(view().module_value == 255); /* low byte saturates */
@@ -465,6 +467,76 @@ static void test_tripwire_module(void)
     v = view();
     CHECK(v.state == PROTO_STATE_DEFUSED && v.progress_pct == 100);
     CHECK(v.module_idx == 2 && v.module_type == PROTO_MODULE_TRIPWIRE);
+}
+
+static void test_tripwire_grace(void)
+{
+    start_bomb(0, NULL);
+    solve_dial();
+    solve_wires();
+
+    /* A 250 ms blip keeps the hold running from its original start. */
+    ev(GAME_EVT_DISTANCE, 20);
+    advance(1000);
+    ev(GAME_EVT_DISTANCE, 999);
+    advance(250);
+    ev(GAME_EVT_DISTANCE, 20);
+    CHECK((view().module_value >> 8) == 41);
+    advance(1700);
+    CHECK(view().state == PROTO_STATE_BOMB_ACTIVE);
+    advance(TICK_MS);
+    CHECK(view().state == PROTO_STATE_DEFUSED);
+
+    /* 350 ms out resets the hold, even if the next reading is in band. */
+    start_bomb(0, NULL);
+    solve_dial();
+    solve_wires();
+    ev(GAME_EVT_DISTANCE, 20);
+    advance(1000);
+    ev(GAME_EVT_DISTANCE, 30);
+    advance(350);
+    ev(GAME_EVT_DISTANCE, 20);
+    CHECK((view().module_value >> 8) == 0);
+    advance(2900);
+    CHECK(view().state == PROTO_STATE_BOMB_ACTIVE);
+    advance(TICK_MS * 2);
+    CHECK(view().state == PROTO_STATE_DEFUSED);
+
+    /* Completion is blocked while the latest reading is out of band. */
+    start_bomb(0, NULL);
+    solve_dial();
+    solve_wires();
+    ev(GAME_EVT_DISTANCE, 20);
+    advance(2800);
+    ev(GAME_EVT_DISTANCE, 30);
+    advance(200);                       /* hold is 3000 ms, but the hand is out */
+    CHECK(view().state == PROTO_STATE_BOMB_ACTIVE);
+    ev(GAME_EVT_DISTANCE, 20);          /* back in band within the grace */
+    advance(TICK_MS);
+    CHECK(view().state == PROTO_STATE_DEFUSED);
+
+    /* The grace timer works across a now_ms wraparound. */
+    {
+        proto_bomb_config_t c;
+        default_cfg(&c);
+        c.module_count = 1;
+        c.module_order[0] = PROTO_MODULE_TRIPWIRE;
+        now = 0xFFFFFFFFu - 500u;
+        game_init(&g, now);
+        CHECK(game_set_config(&g, &c));
+        ev(GAME_EVT_CMD_RING_NOW, 0);
+        advance(TICK_MS);
+        ev(GAME_EVT_DISTANCE, 20);
+        advance(500);
+        ev(GAME_EVT_DISTANCE, 30);
+        advance(250);                   /* crosses the wrap, still inside the grace */
+        CHECK(now < 1000u);
+        ev(GAME_EVT_DISTANCE, 20);
+        CHECK((view().module_value >> 8) > 0);
+        ev(GAME_EVT_DISTANCE, 30);
+        advance(GAME_TRIP_GRACE_MS);
+        CHECK((view().module_value >> 8) == 0);
+    }
 }
 
 static void test_defuse_result_and_return_to_idle(void)
@@ -922,6 +994,7 @@ int main(void)
     test_wires_module();
     test_wire_cut_mask_encoding();
     test_tripwire_module();
+    test_tripwire_grace();
     test_defuse_result_and_return_to_idle();
     test_tamper();
     test_explosion_by_strikes_and_second_bomb();

@@ -43,7 +43,7 @@ per explosion so far this session, capped at 4 in total. An extra's type is
 `(previous module type % 3) + 1` (DIAL -> WIRES -> TRIPWIRE -> DIAL). Each new bomb takes a
 snapshot of the config, so `game_set_config` while a bomb runs only affects the next bomb.
 The default offline bomb: DIAL, WIRES, TRIPWIRE, 180 s, code 4-2-7-1, 4 wires (correct = index 2),
-band 18..22 cm, 3 strikes.
+band 15..25 cm, 3 strikes.
 
 ## Config validation (`game_set_config`)
 
@@ -59,10 +59,10 @@ clamped `wire_count`. Clamped: `time_limit_s` 30..600, `wire_count` 3..6, `max_s
 | DIAL | `ENC_PRESS` | right digit: DIGIT_OK, next digit (value back to 0); 4th right digit clears the module. Wrong: STRIKE, value reset to 0 |
 | WIRES | `JOY_LEFT/RIGHT` | cursor moves, clamped (no wrap), CLICK only if it moved |
 | WIRES | `JOY_PRESS` | uncut wire: cut it; correct clears the module, wrong = STRIKE (stays cut). Already cut: DENIED |
-| TRIPWIRE | `DISTANCE` | inside `[min,max]` starts the hold timer if idle; outside, or > 400, resets it (no strike) |
+| TRIPWIRE | `DISTANCE` | inside `[min,max]` starts the hold timer if idle; outside, or > 400, starts a 300 ms grace (`GAME_TRIP_GRACE_MS`) and resets the hold only if the reading stays out that long (no strike) |
 | any | `TAMPER` | >= 1500 mg in BOMB_ACTIVE = STRIKE, then 2000 ms with tamper ignored |
 
-TRIPWIRE: holding for 3000 ms (checked in `game_tick`) clears the module. No strikes. Inputs for a
+TRIPWIRE: holding for 3000 ms (checked in `game_tick`) clears the module, but only while the latest reading is in band. A blip out of band shorter than 300 ms is forgiven and the hold continues from its original start. The MCX ultrasonic task posts the median of its last 3 pings (`APP_US_MEDIAN_N`), so one stray or lost echo (999) does not count as a reading; 999 is posted only when at least 2 of the 3 are 999. No strikes. Inputs for a
 module other than the current one are ignored; `TAMPER` counts for any module.
 
 Terminal sounds replace the ordinary one: the fatal strike plays only EXPLODED, the last module

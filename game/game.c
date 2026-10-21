@@ -169,6 +169,7 @@ static void init_module(game_t *g)
     g->wire_cut_mask = 0u;
     g->trip_distance_cm = 0u;
     g->trip_holding = false;
+    g->trip_out = false;
 }
 
 /* Start a fresh bomb from the current config plus one extra module per extra. */
@@ -300,17 +301,31 @@ static void wire_press(game_t *g, uint32_t now_ms)
     }
 }
 
+/* Out of band for the whole grace period: the hold is lost. */
+static void trip_expire_grace(game_t *g, uint32_t now_ms)
+{
+    if (g->trip_out && (uint32_t)(now_ms - g->trip_out_since_ms) >= GAME_TRIP_GRACE_MS) {
+        g->trip_holding = false;
+        g->trip_out = false;
+    }
+}
+
 static void trip_distance(game_t *g, int32_t cm, uint32_t now_ms)
 {
     bool in_band = cm >= (int32_t)g->bomb_cfg.trip_min_cm && cm <= (int32_t)g->bomb_cfg.trip_max_cm &&
                    cm <= GAME_TRIP_MAX_VALID_CM;
 
     g->trip_distance_cm = (uint8_t)((cm < 0) ? 0 : ((cm > GAME_VIEW_MAX_DISTANCE_CM) ? GAME_VIEW_MAX_DISTANCE_CM : cm));
-    if (!in_band) {
-        g->trip_holding = false;
-    } else if (!g->trip_holding) {
-        g->trip_holding = true;
-        g->trip_hold_start_ms = now_ms;
+    trip_expire_grace(g, now_ms);
+    if (in_band) {
+        g->trip_out = false;
+        if (!g->trip_holding) {
+            g->trip_holding = true;
+            g->trip_hold_start_ms = now_ms;
+        }
+    } else if (g->trip_holding && !g->trip_out) {
+        g->trip_out = true;
+        g->trip_out_since_ms = now_ms;
     }
 }
 
@@ -511,7 +526,8 @@ void game_tick(game_t *g, uint32_t now_ms)
         break;
     case PROTO_STATE_BOMB_ACTIVE:
         /* Tripwire first, so a hold completing on the deadline tick still wins. */
-        if (g->modules[g->cleared] == PROTO_MODULE_TRIPWIRE && g->trip_holding &&
+        trip_expire_grace(g, now_ms);
+        if (g->modules[g->cleared] == PROTO_MODULE_TRIPWIRE && g->trip_holding && !g->trip_out &&
             (uint32_t)(now_ms - g->trip_hold_start_ms) >= GAME_TRIP_HOLD_MS) {
             module_cleared(g, now_ms);
         }

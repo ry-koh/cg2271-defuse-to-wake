@@ -100,6 +100,8 @@ typedef struct {
     uint8_t trip_distance_cm;
     bool trip_holding;
     uint32_t trip_hold_start_ms;
+    bool trip_out;
+    uint32_t trip_out_since_ms;
 
     bool tamper_cooling;
     uint32_t tamper_cooldown_end_ms;

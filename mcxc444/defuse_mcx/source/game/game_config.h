@@ -25,8 +25,8 @@ extern "C" {
 #define GAME_DEFAULT_DIAL_CODE_3    1u
 #define GAME_DEFAULT_WIRE_COUNT     4u
 #define GAME_DEFAULT_CORRECT_WIRE   2u     /* zero-based */
-#define GAME_DEFAULT_TRIP_MIN_CM    18u
-#define GAME_DEFAULT_TRIP_MAX_CM    22u
+#define GAME_DEFAULT_TRIP_MIN_CM    15u
+#define GAME_DEFAULT_TRIP_MAX_CM    25u
 #define GAME_DEFAULT_MAX_STRIKES    3u
 
 /* ---- Config validation limits (game_set_config) ---- */
@@ -46,6 +46,7 @@ extern "C" {
 
 /* ---- Tripwire ---- */
 #define GAME_TRIP_HOLD_MS           3000u
+#define GAME_TRIP_GRACE_MS          300u   /* out-of-band time forgiven before the hold resets */
 #define GAME_TRIP_MAX_VALID_CM      400    /* readings above this are noise */
 #define GAME_VIEW_MAX_DISTANCE_CM   255    /* distance field of module_value */
 

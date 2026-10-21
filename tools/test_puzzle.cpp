@@ -790,7 +790,7 @@ static void test_build_config(void)
           c.module_order[2] == PROTO_MODULE_TRIPWIRE);
     CHECK(c.time_limit_s == 180 && c.dial_code[0] == 4 && c.dial_code[1] == 2 && c.dial_code[2] == 7 && c.dial_code[3] == 1);
     CHECK(c.wire_count == 5 && c.correct_wire == 2);                    /* k = 3 (1-based) -> index 2 */
-    CHECK(c.trip_min_cm == 18 && c.trip_max_cm == 22 && c.max_strikes == 3);
+    CHECK(c.trip_min_cm == GAME_DEFAULT_TRIP_MIN_CM && c.trip_max_cm == GAME_DEFAULT_TRIP_MAX_CM && c.max_strikes == 3);
     CHECK(proto_pack_bomb_config(&c, buf, sizeof(buf)) == PROTO_SIZE_BOMB_CONFIG);
     CHECK(proto_unpack_bomb_config(buf, sizeof(buf), &back) && back.module_count == c.module_count &&
           back.time_limit_s == c.time_limit_s && back.wire_count == c.wire_count &&
