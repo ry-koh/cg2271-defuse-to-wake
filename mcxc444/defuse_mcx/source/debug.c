@@ -127,6 +127,7 @@ static void debug_task(void *arg)
     game_event_t ev;
     uint16_t x;
     uint16_t y;
+    int32_t last_dist = APP_US_INVALID_CM;
 
     (void)arg;
     boot_demo();
@@ -135,7 +136,19 @@ static void debug_task(void *arg)
         now = xTaskGetTickCount();
         wait = ((int32_t)(next - now) > 0) ? (TickType_t)(next - now) : 0u;
         if (xQueueReceive(input_queue_handle(), &ev, wait) == pdTRUE) {
-            PRINTF("[evt] %s %d\r\n", event_name(ev.type), (int)ev.value);
+            if (ev.type == GAME_EVT_DISTANCE) {
+                /* The sampler emits ~16 DISTANCE events/s: print only real changes. */
+                bool edge = (ev.value == APP_US_INVALID_CM) != (last_dist == APP_US_INVALID_CM);
+                int32_t delta = ev.value - last_dist;
+
+                if (!edge && delta < APP_DEBUG_DIST_PRINT_DELTA_CM && -delta < APP_DEBUG_DIST_PRINT_DELTA_CM) {
+                    continue;
+                }
+                last_dist = ev.value;
+            }
+            /* The SDK PRINTF does not render negative %d, so print the sign by hand. */
+            PRINTF("[evt] %s %s%u\r\n", event_name(ev.type), (ev.value < 0) ? "-" : "",
+                   (unsigned)((ev.value < 0) ? (0u - (uint32_t)ev.value) : (uint32_t)ev.value));
             continue;
         }
         next += pdMS_TO_TICKS(APP_DEBUG_TEST_STATS_MS);

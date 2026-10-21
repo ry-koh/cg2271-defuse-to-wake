@@ -112,7 +112,7 @@
 #define APP_COMM_RX_WAIT_MS         10u     /* max wait for a byte before polling timers */
 
 /* ---- Encoder + SW3 ---- */
-#define APP_ENC_TRANSITIONS_PER_STEP 4      /* valid quadrature transitions per detent */
+#define APP_ENC_TRANSITIONS_PER_STEP 2      /* 2 = measured on the team's kit encoder (one step per detent) */
 #define APP_ENC_INVERT              0       /* 1 = swap the CW/CCW sign */
 #define APP_SW3_RING_DELAY_S        3       /* SW3 bench trigger: CMD_RING_NOW value */
 
@@ -165,6 +165,7 @@
 /* ---- Debug task ---- */
 #define APP_DEBUG_STATS_MS          10000u  /* normal mode stats period */
 #define APP_DEBUG_TEST_STATS_MS     5000u   /* driver-test mode stats period */
+#define APP_DEBUG_DIST_PRINT_DELTA_CM 2     /* driver-test mode: print DISTANCE only on a change this big */
 #define GAME_DEBUG_MASK_BITS        6u      /* wires cut-mask digits printed (max 6 wires) */
 #define APP_DEBUG_DEMO_STEP_MS      2000u   /* boot demo: one sound + one LED mode per step */
 
